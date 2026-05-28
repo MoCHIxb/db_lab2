@@ -251,3 +251,58 @@ curl "http://127.0.0.1:5000/api/logs?page=1&per_page=10" \
 - 数据库 SQL 初始化脚本：sql/init.sql
 - 云服务器部署补充说明：DEPLOY_GUIDE.txt
 
+## 10. 云服务器生产配置模板（已提供）
+
+已生成以下可直接参考的模板文件：
+
+- Nginx 配置模板：deploy/nginx/mediacloud.conf
+- systemd 服务模板：deploy/systemd/mediacloud.service
+- 环境变量示例：deploy/env/backend.env.example
+
+### 10.1 启用 Nginx 站点（Ubuntu）
+
+```bash
+sudo cp deploy/nginx/mediacloud.conf /etc/nginx/sites-available/mediacloud.conf
+sudo ln -sf /etc/nginx/sites-available/mediacloud.conf /etc/nginx/sites-enabled/mediacloud.conf
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+说明：
+
+- 先把 server_name 改成你的域名
+- 首次未申请证书前，可先注释 443 段中的 ssl_certificate 与 ssl_certificate_key
+
+### 10.2 启用 systemd 服务（Gunicorn）
+
+```bash
+sudo cp deploy/systemd/mediacloud.service /etc/systemd/system/mediacloud.service
+sudo systemctl daemon-reload
+sudo systemctl enable mediacloud
+sudo systemctl start mediacloud
+sudo systemctl status mediacloud
+```
+
+日志查看：
+
+```bash
+sudo journalctl -u mediacloud -f
+```
+
+### 10.3 申请 HTTPS 证书（Certbot）
+
+```bash
+sudo apt update
+sudo apt install -y certbot python3-certbot-nginx
+sudo certbot --nginx -d your-domain.com -d www.your-domain.com
+```
+
+### 10.4 生产部署后验证
+
+```bash
+curl -I http://your-domain.com
+curl -I https://your-domain.com
+```
+
+若返回 200/301/302 且浏览器可打开页面，说明反向代理链路已生效。
+

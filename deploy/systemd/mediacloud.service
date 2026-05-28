@@ -1,0 +1,49 @@
+# MediaCloud Gunicorn systemd service template
+# Save to: /etc/systemd/system/mediacloud.service
+
+[Unit]
+Description=MediaCloud Flask Service (Gunicorn)
+After=network.target mysql.service
+Wants=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+
+# Project root
+WorkingDirectory=/opt/db_lab2/backend
+
+# Environment variables
+Environment=DB_HOST=127.0.0.1
+Environment=DB_PORT=3306
+Environment=DB_USER=media_user
+Environment=DB_PASS=change_me
+Environment=DB_NAME=media_cloud
+Environment=SECRET_KEY=change_me_to_random
+Environment=JWT_SECRET_KEY=change_me_to_random
+
+# Python environment
+Environment=PATH=/opt/db_lab2/backend/.venv/bin
+
+# Gunicorn startup command
+ExecStart=/opt/db_lab2/backend/.venv/bin/gunicorn \
+    --workers 2 \
+    --threads 4 \
+    --bind 127.0.0.1:5000 \
+    --timeout 3600 \
+    --access-logfile - \
+    --error-logfile - \
+    app:create_app()
+
+Restart=always
+RestartSec=5
+
+# Security hardening basics
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target
