@@ -1,0 +1,64 @@
+MediaCloud 云服务器部署指南 (Windows/Linux 通用思路)
+
+1) 服务器准备
+- 安装 Python 3.10+
+- 安装 MySQL 8.0+
+- 开放端口: 应用端口(例 5000) + MySQL 端口(如需远程连接)
+
+2) 上传项目
+- 将整个项目目录上传到服务器，例如 /opt/db_lab2
+- 进入后端目录: cd /opt/db_lab2/backend
+
+3) 创建虚拟环境并安装依赖
+- python -m venv .venv
+- source .venv/bin/activate    (Windows: .venv\Scripts\activate)
+- pip install -r requirements.txt
+
+4) 配置环境变量
+建议在启动前设置以下变量:
+- DB_HOST=127.0.0.1
+- DB_PORT=3306
+- DB_USER=root
+- DB_PASS=你的密码
+- DB_NAME=media_cloud
+- SECRET_KEY=请替换为随机强密钥
+- JWT_SECRET_KEY=请替换为随机强密钥
+
+Linux 示例:
+export DB_HOST=127.0.0.1
+export DB_PORT=3306
+export DB_USER=root
+export DB_PASS='your_password'
+export DB_NAME=media_cloud
+export SECRET_KEY='change_me'
+export JWT_SECRET_KEY='change_me_too'
+
+5) 初始化数据库
+- 方式A(推荐):
+  python init_db.py
+  该方式会自动建表 + 初始化角色权限 + 创建管理员账号
+
+- 方式B(仅建表):
+  mysql -u root -p < ../sql/init.sql
+
+6) 启动服务
+- python app.py
+- 默认监听: 0.0.0.0:5000
+
+7) 验证
+- 浏览器访问: http://服务器IP:5000
+- 默认管理员账号(若使用 init_db.py):
+  用户名: admin
+  密码: Admin@123
+- 首次登录后请立即修改管理员密码
+
+8) 生产建议
+- 通过 Nginx 反向代理到 Flask 服务
+- 使用 gunicorn/uwsgi 托管，而非直接 python app.py
+- 开启 HTTPS
+- 定期备份 MySQL 和 uploads 目录
+
+9) 常见问题
+- 登录失败: 检查 MySQL 连通、管理员账号是否初始化成功
+- 上传失败: 检查 backend/uploads 目录权限
+- 页面 404: 确认前端静态资源位于 frontend 目录并与 app.py 路径一致
