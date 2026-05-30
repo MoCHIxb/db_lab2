@@ -306,3 +306,97 @@ curl -I https://your-domain.com
 
 若返回 200/301/302 且浏览器可打开页面，说明反向代理链路已生效。
 
+## 11. 阿里云仅 IP 访问启动步骤（已验证）
+
+如果暂时没有域名，可直接通过公网 IP 访问。以下流程适用于 Ubuntu 服务器。
+
+### 11.1 写入仅 IP 的 Nginx 配置
+
+```bash
+sudo tee /etc/nginx/sites-available/mediacloud.conf > /dev/null <<'EOF'
+upstream mediacloud_app {
+  server 127.0.0.1:5000;
+  keepalive 32;
+}
+
+server {
+  listen 80 default_server;
+  listen [::]:80 default_server;
+  server_name _;
+
+  client_max_body_size 2048m;
+
+  location / {
+    proxy_http_version 1.1;
+    proxy_set_header Connection "";
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_connect_timeout 60s;
+    proxy_send_timeout 3600s;
+    proxy_read_timeout 3600s;
+    proxy_pass http://mediacloud_app;
+  }
+
+  access_log /var/log/nginx/mediacloud.access.log;
+  error_log /var/log/nginx/mediacloud.error.log warn;
+}
+EOF
+```
+
+### 11.2 启用站点并重载 Nginx
+
+```bash
+sudo ln -sf /etc/nginx/sites-available/mediacloud.conf /etc/nginx/sites-enabled/mediacloud.conf
+sudo rm -f /etc/nginx/sites-enabled/default
+sudo nginx -t
+sudo systemctl reload nginx
+sudo systemctl status nginx --no-pager
+```
+
+### 11.3 修正 systemd 服务路径并启动 Gunicorn
+
+当项目路径不是 /opt/db_lab2 时，必须同步修改 service 文件中的路径，尤其是 ExecStart。
+
+```bash
+sudo sed -i "s#^WorkingDirectory=.*#WorkingDirectory=/usr/local/db_lab/db_lab2/backend#g" /etc/systemd/system/mediacloud.service
+sudo sed -i "s#^Environment=PATH=.*#Environment=PATH=/usr/local/db_lab/db_lab2/backend/.venv/bin#g" /etc/systemd/system/mediacloud.service
+sudo sed -i "s#^ExecStart=.*#ExecStart=/usr/local/db_lab/db_lab2/backend/.venv/bin/gunicorn --workers 2 --threads 4 --bind 127.0.0.1:5000 --timeout 3600 --access-logfile - --error-logfile - app:create_app()#g" /etc/systemd/system/mediacloud.service
+
+sudo /usr/local/db_lab/db_lab2/backend/.venv/bin/python -m pip install -U gunicorn
+sudo systemctl daemon-reload
+sudo systemctl enable mediacloud
+sudo systemctl restart mediacloud
+sudo systemctl status mediacloud --no-pager
+```
+
+### 11.4 连通性验证
+
+```bash
+# 本机链路
+curl -I http://127.0.0.1:5000/
+curl -I http://127.0.0.1/
+
+# 公网 IP
+curl -4 ifconfig.me
+curl -I http://<你的公网IP>
+```
+
+浏览器直接访问：
+
+- http://<你的公网IP>
+
+### 11.5 防火墙与安全组检查
+
+阿里云安全组需放行 TCP 80。若系统启用 ufw，还需放行：
+
+```bash
+sudo ufw status
+sudo ufw allow 80/tcp
+```
+
+### 11.6 日志提示说明
+
+如果日志中出现历史的证书报错（例如 /etc/letsencrypt/live/your-domain.com/... not found），但当前 nginx -t 和 reload 成功，通常是旧失败记录，不影响当前仅 IP 访问配置。
+

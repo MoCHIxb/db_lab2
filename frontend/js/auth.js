@@ -36,6 +36,25 @@ async function restoreSession() {
   updateNavByUser();
 }
 
+async function ensureCurrentUser() {
+  if (currentUser) return currentUser;
+
+  const token = localStorage.getItem('token');
+  if (!token) return null;
+
+  const resp = await API.profile();
+  if (resp.status === 200) {
+    currentUser = resp.data.user;
+    updateNavByUser();
+    return currentUser;
+  }
+
+  localStorage.removeItem('token');
+  currentUser = null;
+  updateNavByUser();
+  return null;
+}
+
 async function doLogin() {
   const username = document.getElementById('loginUsername').value.trim();
   const password = document.getElementById('loginPassword').value;

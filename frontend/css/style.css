@@ -215,6 +215,73 @@ a:hover { text-decoration: underline; }
 .badge-warn    { background: #fef9e7; color: #d68910; }
 .badge-info    { background: #e8f0fe; color: #2c6fad; }
 
+/* ── API Tester ── */
+.api-layout { display: grid; grid-template-columns: 1.1fr 1fr; gap: 1rem; }
+.api-panel {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1.2rem;
+}
+.api-panel h2 { font-size: 1.35rem; margin-bottom: .45rem; }
+.api-panel h3 { font-size: 1.15rem; margin-bottom: .65rem; }
+.api-panel h4 { font-size: .92rem; margin-bottom: .45rem; color: var(--text-muted); }
+.api-subtitle { color: var(--text-muted); font-size: .9rem; margin-bottom: .95rem; }
+.api-form-row { margin-bottom: .85rem; }
+.api-form-row label { display: block; font-size: .88rem; font-weight: 600; margin-bottom: .35rem; }
+.api-form-row input,
+.api-form-row select,
+.api-form-row textarea {
+  width: 100%;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: .55rem .75rem;
+  font-size: .9rem;
+  outline: none;
+  font-family: inherit;
+}
+.api-form-row textarea { resize: vertical; }
+.api-form-row input:focus,
+.api-form-row select:focus,
+.api-form-row textarea:focus { border-color: var(--primary); }
+.api-inline-row {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  flex-wrap: wrap;
+}
+.api-inline-row label {
+  margin-bottom: 0;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+}
+.api-inline-row input[type=checkbox] { width: auto; }
+.api-actions { display: flex; justify-content: flex-end; }
+.api-status {
+  font-size: .88rem;
+  padding: .45rem .65rem;
+  border-radius: 7px;
+  background: #f5f8ff;
+  border: 1px solid #dfe8ff;
+  margin-bottom: .75rem;
+}
+.api-response-block {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .65rem;
+  margin-bottom: .65rem;
+  background: #fafcff;
+}
+.api-response-block pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: .82rem;
+  line-height: 1.45;
+  font-family: Consolas, Monaco, monospace;
+}
+
 /* ── Responsive ── */
 @media (max-width: 768px) {
   .page { padding: 1rem; }
@@ -224,4 +291,5 @@ a:hover { text-decoration: underline; }
   .admin-sidebar { width: 100%; display: flex; overflow-x: auto; padding: .5rem 0; }
   .admin-sidebar li { white-space: nowrap; }
   .hero h1 { font-size: 1.6rem; }
+  .api-layout { grid-template-columns: 1fr; }
 }

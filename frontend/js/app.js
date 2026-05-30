@@ -33,7 +33,8 @@ function modalConfirmAction() {
 
 function showPage(pageName) {
   const protectedPages = ['upload', 'myfiles', 'shares'];
-  if (protectedPages.includes(pageName) && !currentUser) {
+  const hasToken = !!localStorage.getItem('token');
+  if (protectedPages.includes(pageName) && !currentUser && !hasToken) {
     showToast('请先登录');
     pageName = 'login';
   }
@@ -60,6 +61,7 @@ function showPage(pageName) {
   }
   if (pageName === 'myfiles') loadMyFiles(1);
   if (pageName === 'shares') loadMyShares(1);
+  if (pageName === 'apitest') initApiTester();
   if (pageName === 'admin') {
     adminTab('dashboard');
   }

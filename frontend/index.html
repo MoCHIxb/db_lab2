@@ -14,6 +14,7 @@
   <div class="nav-links">
     <a class="nav-item" onclick="showPage('home')">首页</a>
     <a class="nav-item" onclick="showPage('browse')">浏览</a>
+    <a class="nav-item" onclick="showPage('apitest')">API调试</a>
     <a class="nav-item" id="navUpload"   onclick="showPage('upload')"  style="display:none">上传</a>
     <a class="nav-item" id="navMyFiles" onclick="showPage('myfiles')" style="display:none">我的文件</a>
     <a class="nav-item" id="navShares"  onclick="showPage('shares')"  style="display:none">我的分享</a>
@@ -73,6 +74,66 @@
         </div>
         <div class="file-grid" id="browseGrid"></div>
         <div class="pagination" id="browsePagination"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- API 调试页 -->
+  <div id="page-apitest" class="page">
+    <div class="api-layout">
+      <div class="api-panel">
+        <h2>API 可视化调试</h2>
+        <p class="api-subtitle">可直接在网页中发送 GET/POST/PUT/DELETE 请求，适合接口联调与课程演示。</p>
+
+        <div class="api-form-row">
+          <label>请求方法</label>
+          <select id="apiMethod">
+            <option value="GET">GET</option>
+            <option value="POST" selected>POST</option>
+            <option value="PUT">PUT</option>
+            <option value="PATCH">PATCH</option>
+            <option value="DELETE">DELETE</option>
+          </select>
+        </div>
+
+        <div class="api-form-row">
+          <label>请求地址</label>
+          <input id="apiUrl" type="text" value="/api/auth/login" placeholder="例如 /api/auth/login 或完整 http(s) 地址" />
+        </div>
+
+        <div class="api-form-row api-inline-row">
+          <label><input id="apiUseToken" type="checkbox" checked /> 自动携带登录 Token</label>
+          <button class="btn btn-outline btn-sm" onclick="apiFillLoginExample()">填充登录示例</button>
+          <button class="btn btn-outline btn-sm" onclick="apiFillRegisterExample()">填充注册示例</button>
+          <button class="btn btn-outline btn-sm" onclick="apiClearForm()">清空</button>
+        </div>
+
+        <div class="api-form-row">
+          <label>自定义请求头（每行 key: value）</label>
+          <textarea id="apiHeaders" rows="4" placeholder="Content-Type: application/json"></textarea>
+        </div>
+
+        <div class="api-form-row">
+          <label>请求体（JSON）</label>
+          <textarea id="apiBody" rows="10" placeholder='{"username":"u1","password":"123456"}'></textarea>
+        </div>
+
+        <div class="api-actions">
+          <button class="btn btn-primary" onclick="apiSendRequest()">发送请求</button>
+        </div>
+      </div>
+
+      <div class="api-panel">
+        <h3>响应结果</h3>
+        <div id="apiStatus" class="api-status">等待请求...</div>
+        <div class="api-response-block">
+          <h4>响应头</h4>
+          <pre id="apiResponseHeaders">-</pre>
+        </div>
+        <div class="api-response-block">
+          <h4>响应体</h4>
+          <pre id="apiResponseBody">-</pre>
+        </div>
       </div>
     </div>
   </div>
@@ -296,6 +357,7 @@
 <script src="js/auth.js"></script>
 <script src="js/files.js"></script>
 <script src="js/admin.js"></script>
+<script src="js/api_tester.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

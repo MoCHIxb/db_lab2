@@ -235,7 +235,12 @@ function setupUploadDragDrop() {
 }
 
 async function submitUpload() {
-  if (!currentUser) {
+  let user = currentUser;
+  if (!user && typeof ensureCurrentUser === 'function') {
+    user = await ensureCurrentUser();
+  }
+
+  if (!user && !localStorage.getItem('token')) {
     showToast('请先登录后再上传');
     showPage('login');
     return;
@@ -286,7 +291,11 @@ async function submitUpload() {
 }
 
 async function loadMyFiles(page = 1) {
-  if (!currentUser) return;
+  let user = currentUser;
+  if (!user && typeof ensureCurrentUser === 'function') {
+    user = await ensureCurrentUser();
+  }
+  if (!user) return;
   myFilesState.page = page;
   const resp = await API.myFiles(myFilesState);
   const body = document.getElementById('myFilesBody');
