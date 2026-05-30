@@ -31,15 +31,29 @@ function modalConfirmAction() {
   if (typeof window.__modalAction === 'function') window.__modalAction();
 }
 
-function showPage(pageName) {
-  const protectedPages = ['upload', 'myfiles', 'shares'];
+async function resolveUserSession() {
+  if (currentUser) return currentUser;
+  if (typeof ensureCurrentUser === 'function') {
+    return await ensureCurrentUser();
+  }
+  return null;
+}
+
+async function showPage(pageName) {
+  const protectedPages = ['myfiles', 'shares'];
   const hasToken = !!localStorage.getItem('token');
-  if (protectedPages.includes(pageName) && !currentUser && !hasToken) {
+  let user = currentUser;
+
+  if ((protectedPages.includes(pageName) || pageName === 'admin') && !user && hasToken) {
+    user = await resolveUserSession();
+  }
+
+  if (protectedPages.includes(pageName) && !user && !hasToken) {
     showToast('请先登录');
     pageName = 'login';
   }
 
-  if (pageName === 'admin' && (!currentUser || !currentUser.roles?.includes('admin'))) {
+  if (pageName === 'admin' && (!user || !user.roles?.includes('admin'))) {
     showToast('仅管理员可访问');
     pageName = 'home';
   }

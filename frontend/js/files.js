@@ -235,15 +235,8 @@ function setupUploadDragDrop() {
 }
 
 async function submitUpload() {
-  let user = currentUser;
-  if (!user && typeof ensureCurrentUser === 'function') {
-    user = await ensureCurrentUser();
-  }
-
-  if (!user && !localStorage.getItem('token')) {
-    showToast('请先登录后再上传');
-    showPage('login');
-    return;
+  if (!localStorage.getItem('token') && typeof ensureCurrentUser === 'function') {
+    await ensureCurrentUser();
   }
 
   const fileInput = document.getElementById('fileInput');
@@ -285,7 +278,12 @@ async function submitUpload() {
     loadBrowseFiles(1);
     loadHomePage();
     showPage('myfiles');
+  } else if (resp.status === 401 || resp.status === 403) {
+    progress.style.display = 'none';
+    showToast(resp.data.msg || '请先登录后再上传');
+    showPage('login');
   } else {
+    progress.style.display = 'none';
     showToast(resp.data.msg || '上传失败');
   }
 }
