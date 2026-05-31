@@ -2,6 +2,7 @@ import os
 from datetime import datetime
 from flask import Blueprint, request, jsonify, send_file, current_app
 from flask_jwt_extended import get_jwt_identity
+from sqlalchemy.exc import SQLAlchemyError
 from extensions import db
 from models import File, Tag, Category, FilePermission
 from utils.auth_helper import require_auth, get_current_user, check_file_access, log_access
@@ -88,43 +89,71 @@ def upload_file():
     if not allowed_file(file_storage.filename):
         return jsonify(msg='不支持的文件格式'), 415
 
-    info = save_uploaded_file(file_storage, current_app.config['UPLOAD_FOLDER'])
+    try:
+        info = save_uploaded_file(file_storage, current_app.config['UPLOAD_FOLDER'])
+    except Exception:
+        current_app.logger.exception('保存上传文件失败')
+        return jsonify(msg='保存文件失败，请稍后重试'), 500
 
-    visibility = int(request.form.get('visibility', 1))
+    try:
+        visibility = int(request.form.get('visibility', 1))
+    except (TypeError, ValueError):
+        delete_file_from_disk(info['storage_path'])
+        return jsonify(msg='visibility 参数格式错误'), 400
+    if visibility not in (0, 1, 2):
+        delete_file_from_disk(info['storage_path'])
+        return jsonify(msg='visibility 参数必须是 0/1/2'), 400
+
     description = request.form.get('description', '').strip()
 
-    media_file = File(
-        filename=info['filename'],
-        original_name=info['original_name'],
-        file_type=info['file_type'],
-        file_ext=info['file_ext'],
-        file_size=info['file_size'],
-        storage_path=info['storage_path'],
-        uploader_id=user.user_id,
-        visibility=visibility,
-        description=description,
-    )
-    db.session.add(media_file)
-    db.session.flush()  # 获取 file_id
+    try:
+        media_file = File(
+            filename=info['filename'],
+            original_name=info['original_name'],
+            file_type=info['file_type'],
+            file_ext=info['file_ext'],
+            file_size=info['file_size'],
+            storage_path=info['storage_path'],
+            uploader_id=user.user_id,
+            visibility=visibility,
+            description=description,
+        )
+        db.session.add(media_file)
+        db.session.flush()  # 获取 file_id
 
-    # 处理分类
-    category_ids = request.form.getlist('category_ids')
-    for cid in category_ids:
-        cat = Category.query.get(int(cid))
-        if cat:
-            media_file.categories.append(cat)
+        # 处理分类
+        category_ids = request.form.getlist('category_ids')
+        for cid in category_ids:
+            try:
+                cid_int = int(cid)
+            except (TypeError, ValueError):
+                continue
+            cat = Category.query.get(cid_int)
+            if cat:
+                media_file.categories.append(cat)
 
-    # 处理标签（逗号分隔字符串）
-    tag_names = [t.strip() for t in request.form.get('tags', '').split(',') if t.strip()]
-    for tag_name in tag_names:
-        tag = Tag.query.filter_by(tag_name=tag_name).first()
-        if not tag:
-            tag = Tag(tag_name=tag_name)
-            db.session.add(tag)
-            db.session.flush()
-        media_file.tags.append(tag)
+        # 处理标签（逗号分隔字符串）
+        tag_names = [t.strip() for t in request.form.get('tags', '').split(',') if t.strip()]
+        for tag_name in tag_names:
+            tag = Tag.query.filter_by(tag_name=tag_name).first()
+            if not tag:
+                tag = Tag(tag_name=tag_name)
+                db.session.add(tag)
+                db.session.flush()
+            media_file.tags.append(tag)
 
-    db.session.commit()
+        db.session.commit()
+    except SQLAlchemyError:
+        db.session.rollback()
+        delete_file_from_disk(info['storage_path'])
+        current_app.logger.exception('上传元数据入库失败')
+        return jsonify(msg='上传失败，数据库写入异常'), 500
+    except Exception:
+        db.session.rollback()
+        delete_file_from_disk(info['storage_path'])
+        current_app.logger.exception('上传处理失败')
+        return jsonify(msg='上传失败，服务器内部错误'), 500
+
     log_access(media_file.file_id, user.user_id, 'upload')
     return jsonify(msg='上传成功', file=media_file.to_dict()), 201
 
