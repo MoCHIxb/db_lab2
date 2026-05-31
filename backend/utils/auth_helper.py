@@ -37,7 +37,11 @@ def require_auth(f):
             verify_jwt_in_request()
         except Exception:
             return jsonify(msg='请先登录'), 401
-        user = User.query.get(get_jwt_identity())
+        try:
+            uid = int(get_jwt_identity())
+        except Exception:
+            return jsonify(msg='请先登录'), 401
+        user = User.query.get(uid)
         if not user or user.status == 0:
             return jsonify(msg='账号已被禁用'), 403
         return f(*args, **kwargs)
@@ -53,7 +57,11 @@ def require_admin(f):
             verify_jwt_in_request()
         except Exception:
             return jsonify(msg='请先登录'), 401
-        user = User.query.get(get_jwt_identity())
+        try:
+            uid = int(get_jwt_identity())
+        except Exception:
+            return jsonify(msg='请先登录'), 401
+        user = User.query.get(uid)
         if not user or user.status == 0:
             return jsonify(msg='账号已被禁用'), 403
         if not user.has_role('admin'):

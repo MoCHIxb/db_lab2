@@ -62,7 +62,8 @@ def login():
     user.last_login = datetime.utcnow()
     db.session.commit()
 
-    token = create_access_token(identity=user.user_id)
+    # PyJWT/Flask-JWT-Extended 新版本对 sub 类型更严格，使用字符串 identity 更稳妥
+    token = create_access_token(identity=str(user.user_id))
     return jsonify(token=token, user=user.to_dict()), 200
 
 
