@@ -104,7 +104,11 @@ def list_files():
 def public_overview_stats():
     """首页公开统计：公开文件数、私有文件数、用户总数。"""
     public_count = File.query.filter_by(status=1, visibility=1).count()
-    private_count = File.query.filter_by(status=1, visibility=0).count()
+    # 私有统计口径：私有(0) + 授权可见(2)
+    private_count = File.query.filter(
+        File.status == 1,
+        File.visibility.in_([0, 2]),
+    ).count()
     user_count = User.query.count()
     return jsonify(
         public_file_count=public_count,

@@ -152,7 +152,7 @@ async function loadHomePage() {
     statsBox.innerHTML = `
       <div class="stat-card"><div class="val">${publicCount}</div><div class="lbl">公开文件</div></div>
       <div class="stat-card"><div class="val">${userCount}</div><div class="lbl">用户总数</div></div>
-      <div class="stat-card"><div class="val">${privateCount}</div><div class="lbl">私有文件数目</div></div>
+      <div class="stat-card"><div class="val">${privateCount}</div><div class="lbl">私有文件数目（含授权可见）</div></div>
     `;
   }
 
