@@ -300,6 +300,22 @@ async function submitUpload() {
     .map((el) => el.value);
   categoryIds.forEach((id) => fd.append('category_ids', id));
 
+  // 前端校验：避免标签与已选子分类重名，减少语义重复
+  const selectedCategoryNames = Array.from(
+    document.querySelectorAll('#uploadCategories input[type="checkbox"]:checked + span')
+  ).map((el) => (el.textContent || '').trim().toLowerCase()).filter(Boolean);
+
+  const tagNames = (document.getElementById('uploadTags').value || '')
+    .split(',')
+    .map((t) => t.trim().toLowerCase())
+    .filter(Boolean);
+
+  const duplicated = tagNames.filter((t) => selectedCategoryNames.includes(t));
+  if (duplicated.length > 0) {
+    showToast('标签与子分类重复：' + duplicated.join('、') + '，请二选一');
+    return;
+  }
+
   const progress = document.getElementById('uploadProgress');
   const fill = document.getElementById('progressFill');
   const text = document.getElementById('progressText');
