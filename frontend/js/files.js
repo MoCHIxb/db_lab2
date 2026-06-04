@@ -142,9 +142,15 @@ async function loadCategoriesForSidebar() {
   `;
 
   if (uploadCategories) {
-    uploadCategories.innerHTML = `
-      <label><span>自动分类已启用，上传时无需手动选择分类。</span></label>
-    `;
+    const flat = [];
+    const walk = (nodes) => nodes.forEach((n) => { flat.push(n); if (n.children) walk(n.children); });
+    walk(categories);
+    uploadCategories.innerHTML = flat.map((c) => `
+      <label>
+        <input type="checkbox" value="${c.category_id}" />
+        <span>${escapeHtml(c.category_name)}</span>
+      </label>
+    `).join('');
   }
 }
 
@@ -248,6 +254,10 @@ async function submitUpload() {
   fd.append('visibility', document.getElementById('uploadVisibility').value);
   fd.append('tags', document.getElementById('uploadTags').value.trim());
   fd.append('description', document.getElementById('uploadDesc').value.trim());
+
+  const categoryIds = Array.from(document.querySelectorAll('#uploadCategories input[type="checkbox"]:checked'))
+    .map((el) => el.value);
+  categoryIds.forEach((id) => fd.append('category_ids', id));
 
   const progress = document.getElementById('uploadProgress');
   const fill = document.getElementById('progressFill');

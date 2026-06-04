@@ -10,8 +10,6 @@ from utils.file_helper import allowed_file, save_uploaded_file, delete_file_from
 
 files_bp = Blueprint('files', __name__, url_prefix='/api/files')
 
-AUDIOBOOK_TAG_HINTS = {'有声书', '听书', 'audiobook', 'podcast'}
-
 
 def _get_or_create_category(name: str, parent_id=None):
     q = Category.query.filter_by(category_name=name, parent_id=parent_id)
@@ -24,25 +22,15 @@ def _get_or_create_category(name: str, parent_id=None):
     return cat
 
 
-def _apply_auto_categories(media_file: File, file_type: str, tag_names):
-    """分类策略：先按后缀得到 file_type，再按标签细分音频内容。"""
-    media_file.categories.clear()
-
-    normalized_tags = {str(t).strip().lower() for t in (tag_names or []) if str(t).strip()}
-
-    if file_type == 'video':
-        video_cat = _get_or_create_category('视频', None)
-        media_file.categories.append(video_cat)
+def _apply_base_media_category(media_file: File, file_type: str):
+    """仅按文件类型补充基础分类：audio->音频，video->视频。"""
+    if file_type not in ('audio', 'video'):
         return
 
-    # 音频类：顶级固定为“音频”，再用标签细分为“音乐/有声书”。
-    audio_root = _get_or_create_category('音频', None)
-    media_file.categories.append(audio_root)
-
-    is_audiobook = any(t in AUDIOBOOK_TAG_HINTS for t in normalized_tags)
-    sub_name = '有声书' if is_audiobook else '音乐'
-    sub_cat = _get_or_create_category(sub_name, audio_root.category_id)
-    media_file.categories.append(sub_cat)
+    base_name = '音频' if file_type == 'audio' else '视频'
+    base_cat = _get_or_create_category(base_name, None)
+    if all(c.category_id != base_cat.category_id for c in media_file.categories):
+        media_file.categories.append(base_cat)
 
 
 @files_bp.route('', methods=['GET'])
@@ -168,6 +156,17 @@ def upload_file():
         db.session.add(media_file)
         db.session.flush()  # 获取 file_id
 
+        # 处理手动分类
+        category_ids = request.form.getlist('category_ids')
+        for cid in category_ids:
+            try:
+                cid_int = int(cid)
+            except (TypeError, ValueError):
+                continue
+            cat = Category.query.get(cid_int)
+            if cat and all(c.category_id != cat.category_id for c in media_file.categories):
+                media_file.categories.append(cat)
+
         # 处理标签（逗号分隔字符串）
         tag_names = [t.strip() for t in request.form.get('tags', '').split(',') if t.strip()]
         for tag_name in tag_names:
@@ -178,8 +177,8 @@ def upload_file():
                 db.session.flush()
             media_file.tags.append(tag)
 
-        # 自动分类：按文件类型 + 标签细分
-        _apply_auto_categories(media_file, info['file_type'], tag_names)
+        # 自动补充基础媒体分类
+        _apply_base_media_category(media_file, info['file_type'])
 
         db.session.commit()
     except SQLAlchemyError:
@@ -227,24 +226,33 @@ def update_file(fid):
     if 'cover_url' in data:
         file.cover_url = data['cover_url']
 
+    # 更新手动分类
+    if 'category_ids' in data:
+        file.categories.clear()
+        for cid in data['category_ids']:
+            try:
+                cat = Category.query.get(int(cid))
+            except (TypeError, ValueError):
+                cat = None
+            if cat:
+                file.categories.append(cat)
+
+        # 手动分类更新后，仍补充基础媒体分类
+        _apply_base_media_category(file, file.file_type)
+
     # 更新标签
     if 'tags' in data:
         file.tags.clear()
-        tag_names = []
         for tag_name in data['tags']:
             tag_name = tag_name.strip()
             if not tag_name:
                 continue
-            tag_names.append(tag_name)
             tag = Tag.query.filter_by(tag_name=tag_name).first()
             if not tag:
                 tag = Tag(tag_name=tag_name)
                 db.session.add(tag)
                 db.session.flush()
             file.tags.append(tag)
-
-        # 标签变化后重新应用自动分类
-        _apply_auto_categories(file, file.file_type, tag_names)
 
     db.session.commit()
     return jsonify(msg='文件信息已更新', file=file.to_dict()), 200
