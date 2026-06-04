@@ -101,13 +101,14 @@ function renderFileCards(files, containerId) {
 async function loadHomePage() {
   const statsBox = document.getElementById('homeStats');
   if (statsBox) {
-    const resp = await API.listFiles({ page: 1, per_page: 1 });
-    const total = resp.status === 200 ? (resp.data.total || 0) : 0;
+    const resp = await API.homeStats();
+    const publicCount = resp.status === 200 ? (resp.data.public_file_count || 0) : 0;
+    const userCount = resp.status === 200 ? (resp.data.user_count || 0) : 0;
+    const privateCount = resp.status === 200 ? (resp.data.private_file_count || 0) : 0;
     statsBox.innerHTML = `
-      <div class="stat-card"><div class="val">${total}</div><div class="lbl">公开文件</div></div>
-      <div class="stat-card"><div class="val">B/S</div><div class="lbl">系统架构</div></div>
-      <div class="stat-card"><div class="val">Python</div><div class="lbl">后端技术</div></div>
-      <div class="stat-card"><div class="val">MySQL</div><div class="lbl">数据库平台</div></div>
+      <div class="stat-card"><div class="val">${publicCount}</div><div class="lbl">公开文件</div></div>
+      <div class="stat-card"><div class="val">${userCount}</div><div class="lbl">用户总数</div></div>
+      <div class="stat-card"><div class="val">${privateCount}</div><div class="lbl">私有文件数目</div></div>
     `;
   }
 
@@ -119,11 +120,11 @@ async function loadCategoriesForSidebar() {
   const resp = await API.listCategories();
   const tree = document.getElementById('categoryTree');
   const uploadCategories = document.getElementById('uploadCategories');
-  if (!tree || !uploadCategories) return;
+  if (!tree) return;
 
   if (resp.status !== 200) {
     tree.innerHTML = '<li>分类加载失败</li>';
-    uploadCategories.innerHTML = '<span class="error-msg">分类加载失败</span>';
+    if (uploadCategories) uploadCategories.innerHTML = '<span class="error-msg">分类加载失败</span>';
     return;
   }
 
@@ -140,15 +141,11 @@ async function loadCategoriesForSidebar() {
     ${renderTree(categories)}
   `;
 
-  const flat = [];
-  const walk = (nodes) => nodes.forEach((n) => { flat.push(n); if (n.children) walk(n.children); });
-  walk(categories);
-  uploadCategories.innerHTML = flat.map((c) => `
-    <label>
-      <input type="checkbox" value="${c.category_id}" />
-      <span>${escapeHtml(c.category_name)}</span>
-    </label>
-  `).join('');
+  if (uploadCategories) {
+    uploadCategories.innerHTML = `
+      <label><span>自动分类已启用，上传时无需手动选择分类。</span></label>
+    `;
+  }
 }
 
 async function loadTagCloud() {
@@ -251,10 +248,6 @@ async function submitUpload() {
   fd.append('visibility', document.getElementById('uploadVisibility').value);
   fd.append('tags', document.getElementById('uploadTags').value.trim());
   fd.append('description', document.getElementById('uploadDesc').value.trim());
-
-  const categoryIds = Array.from(document.querySelectorAll('#uploadCategories input[type="checkbox"]:checked'))
-    .map((el) => el.value);
-  categoryIds.forEach((id) => fd.append('category_ids', id));
 
   const progress = document.getElementById('uploadProgress');
   const fill = document.getElementById('progressFill');

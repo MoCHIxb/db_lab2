@@ -40,7 +40,7 @@ async function resolveUserSession() {
 }
 
 async function showPage(pageName) {
-  const protectedPages = ['myfiles', 'shares'];
+  const protectedPages = ['myfiles', 'shares', 'profile'];
   const hasToken = !!localStorage.getItem('token');
   let user = currentUser;
 
@@ -53,7 +53,7 @@ async function showPage(pageName) {
     pageName = 'login';
   }
 
-  if (pageName === 'admin' && (!user || !user.roles?.includes('admin'))) {
+  if ((pageName === 'admin' || pageName === 'apitest') && (!user || !user.roles?.includes('admin'))) {
     showToast('仅管理员可访问');
     pageName = 'home';
   }
@@ -75,6 +75,7 @@ async function showPage(pageName) {
   }
   if (pageName === 'myfiles') loadMyFiles(1);
   if (pageName === 'shares') loadMyShares(1);
+  if (pageName === 'profile') loadProfilePage();
   if (pageName === 'apitest') initApiTester();
   if (pageName === 'admin') {
     adminTab('dashboard');

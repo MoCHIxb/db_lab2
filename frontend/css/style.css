@@ -37,6 +37,23 @@ a:hover { text-decoration: underline; }
 .nav-item:hover { background: var(--bg); text-decoration: none; }
 .nav-auth   { display: flex; align-items: center; gap: .5rem; }
 .nav-username { font-weight: 600; font-size: .9rem; }
+.nav-account {
+  display: inline-flex;
+  align-items: center;
+  gap: .45rem;
+  padding: .2rem .45rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.nav-account:hover { text-decoration: none; background: var(--bg); }
+.nav-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--border);
+}
 
 /* ── Buttons ── */
 .btn { display: inline-flex; align-items: center; justify-content: center;
@@ -127,6 +144,38 @@ a:hover { text-decoration: underline; }
 .req { color: var(--danger); }
 .form-footer { text-align: center; margin-top: 1rem; font-size: .9rem; color: var(--text-muted); }
 .error-msg   { color: var(--danger); font-size: .88rem; margin-bottom: .6rem; }
+.help-msg    { color: var(--text-muted); font-size: .85rem; margin-bottom: .75rem; word-break: break-all; }
+
+/* ── Profile ── */
+.profile-layout {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1rem;
+}
+.profile-layout .form-card {
+  margin: 0;
+  max-width: none;
+}
+.profile-avatar-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: .6rem;
+  margin-bottom: 1rem;
+}
+.profile-avatar {
+  width: 86px;
+  height: 86px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--border);
+}
+.profile-avatar-wrap input[type=file] {
+  padding: .45rem;
+  border: 1.5px solid var(--border);
+  border-radius: 7px;
+  width: 100%;
+}
 
 /* ── Upload zone ── */
 .upload-zone { border: 2px dashed var(--border); border-radius: var(--radius);

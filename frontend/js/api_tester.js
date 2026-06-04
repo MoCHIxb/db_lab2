@@ -2,6 +2,10 @@
  * api_tester.js  —  网页可视化 API 调试工具
  */
 
+function apiTesterAllowed() {
+  return !!(currentUser && currentUser.roles && currentUser.roles.includes('admin'));
+}
+
 function apiFillLoginExample() {
   const method = document.getElementById('apiMethod');
   const url = document.getElementById('apiUrl');
@@ -68,6 +72,11 @@ function apiTryParseJson(text) {
 }
 
 async function apiSendRequest() {
+  if (!apiTesterAllowed()) {
+    showToast('仅管理员可操作 API 调试');
+    return;
+  }
+
   const method = document.getElementById('apiMethod').value;
   const url = apiNormalizeUrl(document.getElementById('apiUrl').value);
   const statusEl = document.getElementById('apiStatus');
@@ -140,6 +149,12 @@ async function apiSendRequest() {
 }
 
 function initApiTester() {
+  if (!apiTesterAllowed()) {
+    showToast('仅管理员可访问 API 调试');
+    showPage('home');
+    return;
+  }
+
   const body = document.getElementById('apiBody');
   if (!body) return;
   body.addEventListener('keydown', (e) => {

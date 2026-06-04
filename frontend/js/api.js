@@ -38,8 +38,12 @@ const API = {
   profile:  ()      => request('GET',  '/auth/profile'),
   updateProfile:(d) => request('PUT',  '/auth/profile', d),
   changePassword:(d)=> request('PUT',  '/auth/password', d),
+  forgotPassword:(d)=> request('POST', '/auth/forgot-password', d),
+  resetPassword:(d) => request('POST', '/auth/reset-password', d),
+  uploadAvatar:(fd) => request('POST', '/auth/avatar', fd, true),
 
   // Files
+  homeStats:  ()       => request('GET',  '/files/stats/overview'),
   listFiles:  (params) => request('GET',  '/files?' + new URLSearchParams(params)),
   myFiles:    (params) => request('GET',  '/files/my?' + new URLSearchParams(params)),
   getFile:    (id)     => request('GET',  `/files/${id}`),

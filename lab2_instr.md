@@ -1,4 +1,6 @@
-# 音像云数据库系统 — 需求分析说明与 ER 图
+# 音像云数据库系统 — 需求分析说明  
+
+池墨 PB23111703  
 
 ---
 
@@ -6,10 +8,10 @@
 
 随着数字媒体的普及，个人和企业对音频、视频文件的存储与共享需求日益增长。本项目设计并实现一个**基于 B/S 架构的音像文件云存储管理系统**，支持多账户登录、文件上传/下载/预览、分类管理、标签检索、权限控制及访问审计等核心功能。
 
-- **架构**：B/S（浏览器/服务器）
-- **前端**：HTML + CSS + JavaScript（单页应用）
+- **架构**：B/S  
+- **前端**：HTML + CSS + JavaScript
 - **后端**：Python（Flask 框架）+ RESTful API
-- **数据库**：MySQL，模式满足第三范式（3NF）
+- **数据库**：MySQL，模式满足3NF
 - **存储**：服务器本地存储（可扩展为对象存储）
 
 ---
@@ -36,7 +38,7 @@
 | F2-3 | 文件预览 | 浏览器内在线播放音视频 |
 | F2-4 | 文件删除 | 上传者或管理员可删除文件（逻辑删除） |
 | F2-5 | 文件信息编辑 | 修改文件名称、描述、封面图 |
-| F2-6 | 文件搜索 | 按文件名、标签、分类、上传者检索 |
+| F2-6 | 文件搜索 | 按文件名/描述、标签、分类检索（管理员端支持按文件名检索全库） |
 | F2-7 | 文件排序 | 按上传时间、下载量、文件大小排序 |
 
 ### 2.3 分类与标签模块
@@ -71,8 +73,16 @@
 | 编号 | 功能 | 说明 |
 |------|------|------|
 | F6-1 | 访问记录 | 记录每次文件预览、下载、分享等操作 |
-| F6-2 | 日志查询 | 管理员可按用户、文件、时间段查询日志 |
+| F6-2 | 日志查询 | 管理员可按用户、文件、操作类型查询日志（分页） |
 | F6-3 | 个人历史 | 普通用户可查看自己的操作历史 |
+
+### 2.7 接口调试模块（前端辅助）
+
+| 编号 | 功能 | 说明 |
+|------|------|------|
+| F7-1 | API 可视化调试 | 网页内可发起 GET/POST/PUT/PATCH/DELETE 请求 |
+| F7-2 | Token 自动携带 | 勾选后自动附带登录态 Bearer Token |
+| F7-3 | 响应展示 | 显示状态码、响应头、响应体，便于联调与演示 |
 
 ---
 
@@ -111,137 +121,11 @@
 
 ---
 
-## 五、数据库实体关系图（ER 图）
+## 五、ER 图
 
-```mermaid
-erDiagram
+保存为`erdplus.png`  
 
-    USER {
-        int user_id PK "用户ID"
-        varchar(50) username "用户名，唯一"
-        varchar(255) password_hash "密码哈希"
-        varchar(100) email "邮箱，唯一"
-        varchar(20) phone "手机号"
-        varchar(255) avatar_url "头像地址"
-        datetime created_at "注册时间"
-        datetime last_login "最近登录"
-        tinyint status "状态 0禁用 1正常"
-    }
-
-    ROLE {
-        int role_id PK "角色ID"
-        varchar(30) role_name "角色名 admin/user"
-        varchar(100) description "描述"
-    }
-
-    USER_ROLE {
-        int user_id FK "用户ID"
-        int role_id FK "角色ID"
-        datetime assigned_at "分配时间"
-    }
-
-    PERMISSION {
-        int permission_id PK "权限ID"
-        varchar(50) permission_name "权限名"
-        varchar(30) resource_type "资源类型 file/category/user"
-        varchar(20) action "操作 read/write/delete/download"
-        varchar(100) description "描述"
-    }
-
-    ROLE_PERMISSION {
-        int role_id FK "角色ID"
-        int permission_id FK "权限ID"
-    }
-
-    FILE {
-        int file_id PK "文件ID"
-        varchar(255) filename "存储文件名"
-        varchar(255) original_name "原始文件名"
-        varchar(20) file_type "类型 audio/video"
-        varchar(10) file_ext "扩展名 mp3/mp4等"
-        bigint file_size "文件大小(字节)"
-        varchar(500) storage_path "服务器存储路径"
-        varchar(500) cover_url "封面图地址"
-        text description "文件描述"
-        int uploader_id FK "上传者用户ID"
-        datetime upload_time "上传时间"
-        datetime updated_at "最后修改时间"
-        tinyint visibility "可见性 0私有 1公开 2授权"
-        tinyint status "状态 0已删除 1正常"
-        int download_count "下载次数"
-        int view_count "播放次数"
-    }
-
-    CATEGORY {
-        int category_id PK "分类ID"
-        varchar(50) category_name "分类名"
-        int parent_id FK "父分类ID NULL表示顶级"
-        int sort_order "排序权重"
-    }
-
-    FILE_CATEGORY {
-        int file_id FK "文件ID"
-        int category_id FK "分类ID"
-    }
-
-    TAG {
-        int tag_id PK "标签ID"
-        varchar(30) tag_name "标签名，唯一"
-    }
-
-    FILE_TAG {
-        int file_id FK "文件ID"
-        int tag_id FK "标签ID"
-    }
-
-    FILE_PERMISSION {
-        int fp_id PK "授权记录ID"
-        int file_id FK "文件ID"
-        int user_id FK "被授权用户ID"
-        varchar(20) permission_type "权限类型 read/download"
-        datetime granted_at "授权时间"
-        datetime expire_at "过期时间 NULL永久"
-    }
-
-    SHARE {
-        int share_id PK "分享ID"
-        int file_id FK "被分享文件ID"
-        int sharer_id FK "分享者用户ID"
-        varchar(10) share_code "提取码"
-        datetime created_at "创建时间"
-        datetime expire_at "过期时间 NULL永久"
-        int access_limit "最大访问次数 0不限"
-        int access_count "已访问次数"
-        tinyint status "状态 0失效 1有效"
-    }
-
-    ACCESS_LOG {
-        int log_id PK "日志ID"
-        int user_id FK "操作用户ID NULL匿名"
-        int file_id FK "文件ID"
-        varchar(20) action "操作类型 view/download/share"
-        datetime access_time "操作时间"
-        varchar(45) ip_address "客户端IP"
-        varchar(50) user_agent "浏览器标识"
-    }
-
-    USER ||--o{ USER_ROLE : "拥有角色"
-    ROLE ||--o{ USER_ROLE : "被分配给"
-    ROLE ||--o{ ROLE_PERMISSION : "拥有权限"
-    PERMISSION ||--o{ ROLE_PERMISSION : "赋予角色"
-    USER ||--o{ FILE : "上传"
-    FILE ||--o{ FILE_CATEGORY : "归属"
-    CATEGORY ||--o{ FILE_CATEGORY : "包含文件"
-    CATEGORY ||--o{ CATEGORY : "下级分类"
-    FILE ||--o{ FILE_TAG : "拥有标签"
-    TAG ||--o{ FILE_TAG : "标记文件"
-    FILE ||--o{ FILE_PERMISSION : "被授权访问"
-    USER ||--o{ FILE_PERMISSION : "获得授权"
-    FILE ||--o{ SHARE : "被分享"
-    USER ||--o{ SHARE : "发起分享"
-    USER ||--o{ ACCESS_LOG : "产生日志"
-    FILE ||--o{ ACCESS_LOG : "被访问记录"
-```
+PS：`ACCESS_LOG.user_id` 允许为空（匿名分享访问），因此业务语义上是“日志可选关联用户”。
 
 ---
 
@@ -296,15 +180,15 @@ erDiagram
 
 ## 七、3NF 验证说明
 
-**第一范式（1NF）**：所有表的每个字段均为原子值，无重复组，无嵌套集合。✓
+**1NF**：所有表的每个字段均为原子值，无重复组，无嵌套集合。
 
-**第二范式（2NF）**：所有非主键属性完全依赖于主键。
-- 复合主键的关联表（`USER_ROLE`、`ROLE_PERMISSION`、`FILE_CATEGORY`、`FILE_TAG`）中，非主键属性（如 `assigned_at`）仅依赖完整复合键，不存在部分依赖。✓
+**2NF**：所有非主键属性完全依赖于主键。
+- 复合主键的关联表（`USER_ROLE`、`ROLE_PERMISSION`、`FILE_CATEGORY`、`FILE_TAG`）中，非主键属性（如 `assigned_at`）仅依赖完整复合键，不存在部分依赖。
 
-**第三范式（3NF）**：不存在非主键属性对主键的传递依赖。
-- `FILE` 表中，`uploader_id` → 用户信息（用户名、邮箱等）已拆分到独立的 `USER` 表，文件表不冗余存储用户属性。✓
-- `CATEGORY` 表中，分类名称直接依赖 `category_id`，父分类信息通过外键关联而非内嵌字段。✓
-- `SHARE` 表中，分享者信息通过 `sharer_id` 外键关联 `USER` 表，不在 `SHARE` 表冗余存储用户名等属性。✓
+**3NF**：不存在非主键属性对主键的传递依赖。
+- `FILE` 表中，`uploader_id` → 用户信息（用户名、邮箱等）已拆分到独立的 `USER` 表，文件表不冗余存储用户属性。
+- `CATEGORY` 表中，分类名称直接依赖 `category_id`，父分类信息通过外键关联而非内嵌字段。
+- `SHARE` 表中，分享者信息通过 `sharer_id` 外键关联 `USER` 表，不在 `SHARE` 表冗余存储用户名等属性。
 
 所有表均满足 3NF。
 
@@ -363,4 +247,4 @@ FILE_PERMISSION 中存在有效授权？→ 是 → 按授权类型允许
 | `share` | 分享记录表 | `share_id` | 分享链接管理 |
 | `access_log` | 访问日志表 | `log_id` | 操作审计记录 |
 
-共 **13 张表**，全部满足第三范式（3NF）。
+共 13 张表。

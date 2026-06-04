@@ -18,6 +18,38 @@ def _generate_code(length=6) -> str:
             return code
 
 
+def _parse_expire_at(value: str):
+    """兼容多种前端时间格式：
+    - 2026-06-04T12:30
+    - 2026-06-04T12:30:00
+    - 2026-06-04T12:30:00Z
+    - 2026-06-04T12:30:00+08:00
+    """
+    if not value:
+        return None
+
+    text = value.strip()
+    if not text:
+        return None
+
+    # Python 的 fromisoformat 在部分版本不接受末尾 Z，统一转成 +00:00
+    if text.endswith('Z'):
+        text = text[:-1] + '+00:00'
+
+    try:
+        return datetime.fromisoformat(text)
+    except ValueError:
+        pass
+
+    # 兜底兼容常见 datetime-local 字符串
+    for fmt in ('%Y-%m-%dT%H:%M', '%Y-%m-%d %H:%M', '%Y-%m-%dT%H:%M:%S', '%Y-%m-%d %H:%M:%S'):
+        try:
+            return datetime.strptime(text, fmt)
+        except ValueError:
+            continue
+    return None
+
+
 @shares_bp.route('', methods=['POST'])
 @require_auth
 def create_share():
@@ -36,9 +68,8 @@ def create_share():
 
     expire_at = None
     if data.get('expire_at'):
-        try:
-            expire_at = datetime.fromisoformat(data['expire_at'])
-        except ValueError:
+        expire_at = _parse_expire_at(str(data['expire_at']))
+        if expire_at is None:
             return jsonify(msg='expire_at 格式错误，请使用 ISO 8601'), 400
 
     share = Share(
