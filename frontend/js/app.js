@@ -75,6 +75,7 @@ async function showPage(pageName) {
   }
   if (pageName === 'myfiles') loadMyFiles(1);
   if (pageName === 'shares') loadMyShares(1);
+  if (pageName === 'shareaccess') initShareAccessPage();
   if (pageName === 'profile') loadProfilePage();
   if (pageName === 'apitest') initApiTester();
   if (pageName === 'admin') {

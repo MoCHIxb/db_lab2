@@ -15,6 +15,10 @@ let browseState = {
 
 let myFilesState = { page: 1, per_page: 10 };
 let sharesState = { page: 1, per_page: 10 };
+let uploadCategoryTree = [];
+
+const AUDIO_EXTS = new Set(['mp3', 'wav', 'flac', 'aac', 'ogg', 'm4a']);
+const VIDEO_EXTS = new Set(['mp4', 'avi', 'mkv', 'mov', 'wmv', 'flv', 'webm']);
 
 function formatDate(iso) {
   if (!iso) return '-';
@@ -49,6 +53,46 @@ function visibilityText(v) {
 
 function fileIcon(type) {
   return type === 'audio' ? '🎵' : '🎬';
+}
+
+function detectMediaTypeByName(filename) {
+  const name = String(filename || '').toLowerCase();
+  const i = name.lastIndexOf('.');
+  if (i < 0) return '';
+  const ext = name.slice(i + 1);
+  if (AUDIO_EXTS.has(ext)) return 'audio';
+  if (VIDEO_EXTS.has(ext)) return 'video';
+  return '';
+}
+
+function findRootCategoryByName(name) {
+  return (uploadCategoryTree || []).find((c) => c && c.category_name === name);
+}
+
+function renderUploadCategoryOptionsByType(fileType) {
+  const box = document.getElementById('uploadCategories');
+  if (!box) return;
+
+  if (!fileType) {
+    box.innerHTML = '<label><span>请先选择文件，系统将按音频/视频显示可选子分类。</span></label>';
+    return;
+  }
+
+  const rootName = fileType === 'audio' ? '音频' : '视频';
+  const root = findRootCategoryByName(rootName);
+  const children = root && Array.isArray(root.children) ? root.children : [];
+
+  if (!children.length) {
+    box.innerHTML = `<label><span>暂无“${escapeHtml(rootName)}”子分类，请先在管理后台新增。</span></label>`;
+    return;
+  }
+
+  box.innerHTML = children.map((c) => `
+    <label>
+      <input type="checkbox" value="${c.category_id}" />
+      <span>${escapeHtml(c.category_name)}</span>
+    </label>
+  `).join('');
 }
 
 function buildPagination(containerId, page, pages, onChange) {
@@ -129,6 +173,7 @@ async function loadCategoriesForSidebar() {
   }
 
   const categories = resp.data.categories || [];
+  uploadCategoryTree = categories;
   const renderTree = (nodes, level = 0) => nodes.map((c) => `
     <li style="padding-left:${level * 12}px" onclick="filterByCategory(${c.category_id}); event.stopPropagation();">
       ${escapeHtml(c.category_name)}
@@ -142,15 +187,9 @@ async function loadCategoriesForSidebar() {
   `;
 
   if (uploadCategories) {
-    const flat = [];
-    const walk = (nodes) => nodes.forEach((n) => { flat.push(n); if (n.children) walk(n.children); });
-    walk(categories);
-    uploadCategories.innerHTML = flat.map((c) => `
-      <label>
-        <input type="checkbox" value="${c.category_id}" />
-        <span>${escapeHtml(c.category_name)}</span>
-      </label>
-    `).join('');
+    const selected = document.getElementById('fileInput')?.files?.[0];
+    const t = selected ? detectMediaTypeByName(selected.name) : '';
+    renderUploadCategoryOptionsByType(t);
   }
 }
 
@@ -209,6 +248,7 @@ function setupUploadDragDrop() {
     if (!f) {
       if (preview) preview.style.display = 'none';
       if (hint) hint.style.display = '';
+      renderUploadCategoryOptionsByType('');
       return;
     }
     if (hint) hint.style.display = 'none';
@@ -216,6 +256,7 @@ function setupUploadDragDrop() {
       preview.style.display = '';
       preview.innerHTML = `<b>${escapeHtml(f.name)}</b><br><small>${formatSize(f.size)}</small>`;
     }
+    renderUploadCategoryOptionsByType(detectMediaTypeByName(f.name));
   };
 
   input.addEventListener('change', updatePreview);
@@ -473,4 +514,52 @@ async function revokeShare(shareId) {
   } else {
     showToast(resp.data.msg || '吊销失败');
   }
+}
+
+function initShareAccessPage() {
+  const input = document.getElementById('shareCodeInput');
+  const result = document.getElementById('shareAccessResult');
+  if (result) result.innerHTML = '';
+  if (!input) return;
+  input.focus();
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') accessShareByCode();
+  }, { once: true });
+}
+
+async function accessShareByCode() {
+  const input = document.getElementById('shareCodeInput');
+  const result = document.getElementById('shareAccessResult');
+  if (!input || !result) return;
+
+  const code = input.value.trim();
+  if (!code) {
+    showToast('请输入分享码');
+    return;
+  }
+
+  result.innerHTML = '<div class="file-meta-item"><div class="k">状态</div><div class="v">正在校验分享码...</div></div>';
+  const resp = await API.accessShare(code);
+  if (resp.status !== 200) {
+    result.innerHTML = `<div class="error-msg">${escapeHtml(resp.data.msg || '分享码无效')}</div>`;
+    return;
+  }
+
+  const file = resp.data.file || {};
+  const share = resp.data.share || {};
+  result.innerHTML = `
+    <div class="file-info">
+      <h2>${escapeHtml(file.original_name || '未命名文件')}</h2>
+      <div class="file-meta-grid">
+        <div class="file-meta-item"><div class="k">文件类型</div><div class="v">${escapeHtml(file.file_type || '-')}</div></div>
+        <div class="file-meta-item"><div class="k">文件大小</div><div class="v">${formatSize(file.file_size || 0)}</div></div>
+        <div class="file-meta-item"><div class="k">分享者</div><div class="v">${escapeHtml(share.sharer_name || '-')}</div></div>
+        <div class="file-meta-item"><div class="k">过期时间</div><div class="v">${share.expire_at ? formatDate(share.expire_at) : '永久'}</div></div>
+      </div>
+      <div class="file-actions">
+        <button class="btn btn-outline" onclick="copyShareCode('${escapeHtml(code)}')">复制分享码</button>
+        <button class="btn btn-primary" onclick="openFileDetail(${file.file_id})">打开详情</button>
+      </div>
+    </div>
+  `;
 }

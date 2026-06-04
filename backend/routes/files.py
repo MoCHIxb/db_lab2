@@ -33,6 +33,28 @@ def _apply_base_media_category(media_file: File, file_type: str):
         media_file.categories.append(base_cat)
 
 
+def _base_category_name(file_type: str):
+    if file_type == 'audio':
+        return '音频'
+    if file_type == 'video':
+        return '视频'
+    return None
+
+
+def _get_allowed_child_category_ids(file_type: str):
+    """返回基础分类下可手动选择的子分类ID集合（仅一级子分类）。"""
+    base_name = _base_category_name(file_type)
+    if not base_name:
+        return set()
+
+    base_cat = Category.query.filter_by(category_name=base_name, parent_id=None).first()
+    if not base_cat:
+        return set()
+
+    rows = Category.query.with_entities(Category.category_id).filter_by(parent_id=base_cat.category_id).all()
+    return {row[0] for row in rows}
+
+
 @files_bp.route('', methods=['GET'])
 def list_files():
     """公开文件列表，支持搜索、分类过滤、标签过滤、分页"""
@@ -156,12 +178,15 @@ def upload_file():
         db.session.add(media_file)
         db.session.flush()  # 获取 file_id
 
-        # 处理手动分类
+        # 处理手动分类（仅允许当前基础分类下的子分类）
+        allowed_child_ids = _get_allowed_child_category_ids(info['file_type'])
         category_ids = request.form.getlist('category_ids')
         for cid in category_ids:
             try:
                 cid_int = int(cid)
             except (TypeError, ValueError):
+                continue
+            if cid_int not in allowed_child_ids:
                 continue
             cat = Category.query.get(cid_int)
             if cat and all(c.category_id != cat.category_id for c in media_file.categories):
@@ -229,11 +254,15 @@ def update_file(fid):
     # 更新手动分类
     if 'category_ids' in data:
         file.categories.clear()
+        allowed_child_ids = _get_allowed_child_category_ids(file.file_type)
         for cid in data['category_ids']:
             try:
-                cat = Category.query.get(int(cid))
+                cid_int = int(cid)
             except (TypeError, ValueError):
-                cat = None
+                cid_int = None
+            if cid_int is None or cid_int not in allowed_child_ids:
+                continue
+            cat = Category.query.get(cid_int)
             if cat:
                 file.categories.append(cat)
 
