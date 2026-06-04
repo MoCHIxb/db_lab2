@@ -379,6 +379,7 @@ async function loadMyFiles(page = 1) {
         <td>
           <button class="btn btn-outline btn-sm" onclick="openFileDetail(${f.file_id})">查看</button>
           <button class="btn btn-outline btn-sm" onclick="openShareModal(${f.file_id})">分享</button>
+          ${Number(f.visibility) === 2 ? `<button class="btn btn-outline btn-sm" onclick="openPermissionModal(${f.file_id})">授权管理</button>` : ''}
           <button class="btn btn-danger btn-sm" onclick="deleteMyFile(${f.file_id})">删除</button>
         </td>
       </tr>
@@ -437,6 +438,9 @@ async function openFileDetail(fileId) {
         <div class="file-actions">
           <a class="btn btn-primary" href="${API.downloadUrl(f.file_id)}">下载文件</a>
           ${currentUser ? `<button class="btn btn-outline" onclick="openShareModal(${f.file_id})">创建分享</button>` : ''}
+          ${(currentUser && Number(f.visibility) === 2 && (currentUser.user_id === f.uploader_id || (currentUser.roles || []).includes('admin')))
+            ? `<button class="btn btn-outline" onclick="openPermissionModal(${f.file_id})">授权管理</button>`
+            : ''}
           <button class="btn btn-outline" onclick="showPage('browse')">返回列表</button>
         </div>
       </div>
@@ -449,7 +453,9 @@ async function openFileDetail(fileId) {
 async function openShareModal(fileId) {
   const title = document.getElementById('modalTitle');
   const body = document.getElementById('modalBody');
+  const confirmBtn = document.getElementById('modalConfirm');
   title.textContent = '创建分享';
+  if (confirmBtn) confirmBtn.textContent = '确认';
   body.innerHTML = `
     <div class="form-group">
       <label>访问限制（0 表示不限）</label>
@@ -514,11 +520,136 @@ async function loadMyShares(page = 1) {
 }
 
 function copyShareCode(code) {
-  navigator.clipboard.writeText(code).then(() => {
-    showToast('分享码已复制');
-  }).catch(() => {
-    showToast('复制失败，请手动复制：' + code);
-  });
+  const text = String(code || '').trim();
+  if (!text) {
+    showToast('无可复制的分享码');
+    return;
+  }
+
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(() => {
+      showToast('分享码已复制');
+    }).catch(() => {
+      fallbackCopyText(text);
+    });
+    return;
+  }
+
+  fallbackCopyText(text);
+}
+
+function fallbackCopyText(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.left = '-9999px';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  try {
+    const ok = document.execCommand('copy');
+    if (ok) showToast('分享码已复制');
+    else showToast('复制失败，请手动复制：' + text);
+  } catch (_) {
+    showToast('复制失败，请手动复制：' + text);
+  } finally {
+    document.body.removeChild(ta);
+  }
+}
+
+async function openPermissionModal(fileId) {
+  const title = document.getElementById('modalTitle');
+  const body = document.getElementById('modalBody');
+  const confirmBtn = document.getElementById('modalConfirm');
+  if (!title || !body || !confirmBtn) return;
+
+  title.textContent = '授权可见管理';
+  confirmBtn.textContent = '保存授权';
+  body.innerHTML = '<div class="file-meta-item"><div class="k">状态</div><div class="v">加载授权信息...</div></div>';
+
+  window.__modalAction = () => savePermissionFromModal(fileId);
+  openModal();
+  await renderPermissionModal(fileId);
+}
+
+async function renderPermissionModal(fileId) {
+  const body = document.getElementById('modalBody');
+  if (!body) return;
+
+  const resp = await API.getFilePerms(fileId);
+  if (resp.status !== 200) {
+    body.innerHTML = `<div class="error-msg">${escapeHtml(resp.data.msg || '加载授权失败')}</div>`;
+    return;
+  }
+
+  const perms = resp.data.permissions || [];
+  const rows = perms.map((p) => `
+    <tr>
+      <td>${escapeHtml(p.username || ('用户#' + p.user_id))}</td>
+      <td>${escapeHtml(p.permission_type || 'read')}</td>
+      <td>${p.expire_at ? formatDate(p.expire_at) : '永久'}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="removePermissionFromModal(${fileId}, ${p.fp_id})">撤销</button></td>
+    </tr>
+  `).join('');
+
+  body.innerHTML = `
+    <div class="form-group">
+      <label>目标用户 ID</label>
+      <input id="permUserId" type="number" min="1" placeholder="请输入用户ID" />
+    </div>
+    <div class="form-group">
+      <label>授权类型</label>
+      <select id="permType">
+        <option value="read">read（仅浏览）</option>
+        <option value="download">download（可下载）</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>过期时间（可空）</label>
+      <input id="permExpireAt" type="datetime-local" />
+    </div>
+    <div class="help-msg">点击底部“保存授权”可新增/更新授权；下方可撤销已有授权。</div>
+    <div class="file-table-wrap" style="margin-top:.6rem;">
+      <table class="file-table">
+        <thead><tr><th>用户</th><th>权限</th><th>过期时间</th><th>操作</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="4">暂无授权记录</td></tr>'}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+async function savePermissionFromModal(fileId) {
+  const userId = Number(document.getElementById('permUserId')?.value || 0);
+  const permissionType = document.getElementById('permType')?.value || 'read';
+  const expireRaw = document.getElementById('permExpireAt')?.value || '';
+
+  if (!userId || userId < 1) {
+    showToast('请输入有效的目标用户ID');
+    return;
+  }
+
+  const payload = { user_id: userId, permission_type: permissionType };
+  if (expireRaw) payload.expire_at = new Date(expireRaw).toISOString();
+
+  const resp = await API.addFilePerm(fileId, payload);
+  if (resp.status === 200) {
+    showToast('授权已保存');
+    document.getElementById('permUserId').value = '';
+    document.getElementById('permExpireAt').value = '';
+    await renderPermissionModal(fileId);
+  } else {
+    showToast(resp.data.msg || '保存授权失败');
+  }
+}
+
+async function removePermissionFromModal(fileId, fpId) {
+  const resp = await API.removeFilePerm(fileId, fpId);
+  if (resp.status === 200) {
+    showToast('授权已撤销');
+    await renderPermissionModal(fileId);
+  } else {
+    showToast(resp.data.msg || '撤销失败');
+  }
 }
 
 async function revokeShare(shareId) {
